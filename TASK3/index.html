@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Currency Converter — Offline</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; --accent:#7c5cff;
+      --glass: rgba(255,255,255,0.03); --glass-2: rgba(255,255,255,0.02);
+      --success: #22c55e;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background: linear-gradient(180deg,#07102a 0%, #07121b 60%);
+      color:#e6eef8; -webkit-font-smoothing:antialiased;
+      padding:28px;
+      min-height:100vh;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .app {
+      width:100%; max-width:980px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:14px; box-shadow: 0 10px 40px rgba(2,6,23,0.7);
+      padding:22px; display:grid; gap:18px; grid-template-columns: 1fr 360px;
+    }
+
+    /* Left main */
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.015), transparent);
+      border-radius:10px; padding:18px; border:1px solid rgba(255,255,255,0.03);
+      backdrop-filter: blur(6px);
+    }
+    h1{ margin:0 0 6px 0; font-size:20px; }
+    p.lead{ color:var(--muted); margin:0 0 14px 0; font-size:13px; }
+
+    .row{ display:flex; gap:10px; align-items:center; }
+    .field{
+      background:var(--glass); padding:10px; border-radius:8px; flex:1; border:1px solid rgba(255,255,255,0.02);
+    }
+    input[type="number"], input[type="text"], select{
+      width:100%; border:none; background:transparent; color:inherit; font-size:16px; outline:none;
+    }
+    .btn{
+      display:inline-flex; align-items:center; gap:8px; background:var(--accent); color:white;
+      padding:10px 12px; border-radius:9px; border:none; cursor:pointer; font-weight:600;
+      box-shadow: 0 6px 18px rgba(124,92,255,0.18);
+    }
+    .btn.ghost{ background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--muted); box-shadow:none; font-weight:500;}
+    .small{ font-size:13px; padding:8px 10px; border-radius:8px; }
+
+    .swap {
+      display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px;
+      border-radius:12px; background:var(--glass-2); border:1px solid rgba(255,255,255,0.02); cursor:pointer;
+    }
+
+    /* Right column */
+    .sidebar { display:flex; flex-direction:column; gap:12px; }
+    .card { background:linear-gradient(180deg, rgba(255,255,255,0.015), transparent); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.03); }
+    .rates-list { max-height:240px; overflow:auto; display:grid; gap:8px; padding-right:4px; }
+    .rate-item{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px; border-radius:8px; background:rgba(255,255,255,0.01); }
+    .muted{ color:var(--muted); font-size:13px; }
+
+    .history { max-height:160px; overflow:auto; display:flex; flex-direction:column; gap:6px; }
+    .history .hrow { display:flex; justify-content:space-between; font-size:13px; padding:8px; border-radius:8px; background:rgba(0,0,0,0.14); color: #dcebf9; }
+
+    .search {
+      display:flex; gap:8px; align-items:center; margin-bottom:8px;
+    }
+    .search input { background:transparent; border:none; outline:none; color:inherit; width:100%; }
+
+    footer.small-note { font-size:12px; color:var(--muted); text-align:center; margin-top:6px; }
+
+    /* responsive */
+    @media (max-width:880px){
+      .app{ grid-template-columns: 1fr; padding:16px; }
+      .sidebar{ order:2; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Offline AI Currency Converter">
+    <div class="panel" aria-live="polite">
+      <h1>AI Currency Converter (Offline)</h1>
+      <p class="lead">Convert between currencies without an API. Rates are stored inside the app and can be edited. Works fully offline.</p>
+
+      <!-- Converter -->
+      <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+        <div style="flex:1; min-width:240px;">
+          <label class="muted" for="amount">Amount</label>
+          <div class="field" style="margin-top:6px;">
+            <input id="amount" type="number" step="any" min="0" value="1" aria-label="Amount to convert">
+          </div>
+        </div>
+
+        <div style="min-width:160px;">
+          <label class="muted">From</label>
+          <div class="field" style="margin-top:6px;">
+            <select id="fromCurr" aria-label="From currency"></select>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
+          <button class="swap" id="swapBtn" title="Swap currencies">⇄</button>
+        </div>
+
+        <div style="min-width:160px;">
+          <label class="muted">To</label>
+          <div class="field" style="margin-top:6px;">
+            <select id="toCurr" aria-label="To currency"></select>
+          </div>
+        </div>
+
+        <div style="min-width:120px; align-self:end;">
+          <button class="btn" id="convertBtn">Convert</button>
+        </div>
+      </div>
+
+      <div style="margin-top:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <div class="card" style="display:flex; gap:12px; align-items:center; padding:12px;">
+          <div>
+            <div class="muted">Result</div>
+            <div id="result" style="font-size:20px; font-weight:700; margin-top:6px;">—</div>
+            <div class="muted" id="rateNote" style="margin-top:6px; font-size:13px;"></div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="btn ghost small" id="resetRates">Reset Rates</button>
+          <button class="btn ghost small" id="clearHistory">Clear History</button>
+        </div>
+      </div>
+
+      <!-- Advanced -->
+      <div style="margin-top:16px;" class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700">Advanced</div>
+            <div class="muted">Edit embedded rates, set rounding, or add custom currency.</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <select id="precisionSel" class="small" title="Set decimal places">
+              <option value="2">2 decimals</option>
+              <option value="3">3 decimals</option>
+              <option value="0">Integer</option>
+              <option value="4">4 decimals</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+          <input id="newCode" placeholder="Code e.g. BTC" type="text" style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:inherit;" />
+          <input id="newRate" placeholder="Rate to USD (number)" type="number" step="any" style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:inherit;" />
+          <button class="btn small" id="addCurrency">Add</button>
+        </div>
+      </div>
+
+      <footer class="small-note">Tip: Rates are relative to <strong>USD</strong>. Edit rates to keep them up-to-date. This site intentionally works offline.</footer>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div><strong>Embedded Rates</strong><div class="muted">Base: 1 USD</div></div>
+          <div class="muted">Editable</div>
+        </div>
+
+        <div style="margin-top:10px;" class="search">
+          <input id="rateSearch" placeholder="Search currency (code or name)..." aria-label="Search currencies">
+          <button class="btn ghost small" id="showAll">Show all</button>
+        </div>
+
+        <div class="rates-list" id="ratesList" role="list" aria-label="currency rates list"></div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div><strong>Conversion History</strong><div class="muted">Recent conversions</div></div>
+          <div class="muted" id="historyCount">0</div>
+        </div>
+        <div style="margin-top:10px;" class="history" id="history"></div>
+      </div>
+
+      <div class="card" style="display:flex; gap:8px; align-items:center; justify-content:space-between;">
+        <div>
+          <div style="font-weight:700">Offline AI Helper</div>
+          <div class="muted" style="font-size:13px;">Auto-suggests a rounding style and local currency.</div>
+        </div>
+        <div style="text-align:right;">
+          <div id="aiHint" class="muted">—</div>
+          <button class="btn small" id="applyAi">Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**********************
+     * Offline Currency Converter
+     * - Rates stored in local variable and saved to localStorage (so rates survive reload)
+     * - Rates are relative to USD (base)
+     * - No external API used
+     **********************/
+
+    // Default rates (sample values, edit as you like). Rates = 1 UNIT = X USD? We'll use rates as "1 unit in USD" (value to convert 1 USD -> x unit)
+    // For simplicity: store as amount of currency per 1 USD (i.e., 1 USD = rates[currency] of that currency).
+    const DEFAULT_RATES = {
+      "USD": { name: "US Dollar", perUSD: 1.0000 },
+      "EUR": { name: "Euro", perUSD: 0.9200 },
+      "INR": { name: "Indian Rupee", perUSD: 83.50 },
+      "GBP": { name: "British Pound", perUSD: 0.7900 },
+      "JPY": { name: "Japanese Yen", perUSD: 156.20 },
+      "AUD": { name: "Australian Dollar", perUSD: 1.55 },
+      "CAD": { name: "Canadian Dollar", perUSD: 1.36 },
+      "CNY": { name: "Chinese Yuan", perUSD: 6.96 },
+      "SGD": { name: "Singapore Dollar", perUSD: 1.33 },
+      "BTC": { name: "Bitcoin (approx)", perUSD: 1/30000 }, // approx: 1 USD = 0.000033 BTC
+      "ETH": { name: "Ethereum (approx)", perUSD: 1/2000 }   // approx
+    };
+
+    // Local storage keys
+    const LS_RATES = "offline_rates_v1";
+    const LS_HISTORY = "offline_conv_hist_v1";
+    const LS_PREC = "offline_prec_v1";
+
+    // App state
+    let rates = loadRates();
+    let history = loadHistory();
+    let precision = Number(localStorage.getItem(LS_PREC) || 2);
+
+    // DOM
+    const fromSel = document.getElementById('fromCurr');
+    const toSel = document.getElementById('toCurr');
+    const amountEl = document.getElementById('amount');
+    const convertBtn = document.getElementById('convertBtn');
+    const resultDiv = document.getElementById('result');
+    const rateNote = document.getElementById('rateNote');
+    const ratesList = document.getElementById('ratesList');
+    const historyDiv = document.getElementById('history');
+    const historyCount = document.getElementById('historyCount');
+    const precisionSel = document.getElementById('precisionSel');
+    const swapBtn = document.getElementById('swapBtn');
+    const addCurrencyBtn = document.getElementById('addCurrency');
+    const newCode = document.getElementById('newCode');
+    const newRate = document.getElementById('newRate');
+    const resetRates = document.getElementById('resetRates');
+    const clearHistoryBtn = document.getElementById('clearHistory');
+    const rateSearch = document.getElementById('rateSearch');
+    const showAllBtn = document.getElementById('showAll');
+    const aiHint = document.getElementById('aiHint');
+    const applyAiBtn = document.getElementById('applyAi');
+
+    // Initialize UI
+    function init(){
+      populateSelects();
+      renderRatesList();
+      renderHistory();
+      precisionSel.value = String(precision);
+      updateAiHint();
+
+      // defaults
+      fromSel.value = 'USD';
+      toSel.value = 'INR';
+      displayResultPlaceholder();
+    }
+
+    // Load / Save
+    function loadRates(){
+      try {
+        const s = localStorage.getItem(LS_RATES);
+        if(s){
+          return JSON.parse(s);
+        }
+      } catch(e){ /* ignore */ }
+      localStorage.setItem(LS_RATES, JSON.stringify(DEFAULT_RATES));
+      return JSON.parse(JSON.stringify(DEFAULT_RATES));
+    }
+    function saveRates(){
+      localStorage.setItem(LS_RATES, JSON.stringify(rates));
+    }
+    function loadHistory(){
+      try {
+        const s = localStorage.getItem(LS_HISTORY);
+        if(s) return JSON.parse(s);
+      } catch(e){}
+      return [];
+    }
+    function saveHistory(){
+      localStorage.setItem(LS_HISTORY, JSON.stringify(history.slice(0,50)));
+    }
+
+    // Helpers for conversion:
+    // rates[c] = perUSD (how many of currency units equal 1 USD)
+    // To convert A units of currency X to currency Y:
+    // 1) Convert X -> USD: (A / perUSD_X)
+    // 2) USD -> Y: (USD_amount * perUSD_Y)
+    // => A_in_Y = A * (perUSD_Y / perUSD_X)
+    function convert(amount, from, to){
+      if(!rates[from] || !rates[to]) throw new Error('Unknown currency');
+      const perFrom = Number(rates[from].perUSD);
+      const perTo = Number(rates[to].perUSD);
+      const converted = Number(amount) * (perTo / perFrom);
+      return converted;
+    }
+
+    // UI functions
+    function populateSelects(){
+      const codes = Object.keys(rates).sort();
+      fromSel.innerHTML = '';
+      toSel.innerHTML = '';
+      for(const code of codes){
+        const opt1 = document.createElement('option');
+        opt1.value = code; opt1.textContent = `${code} — ${rates[code].name}`;
+        fromSel.appendChild(opt1);
+
+        const opt2 = opt1.cloneNode(true);
+        toSel.appendChild(opt2);
+      }
+    }
+
+    function renderRatesList(filter=''){
+      ratesList.innerHTML = '';
+      const entries = Object.entries(rates).sort((a,b)=> a[0].localeCompare(b[0]));
+      for(const [code, info] of entries){
+        const name = info.name || '';
+        if(filter){
+          const low = filter.toLowerCase();
+          if(!code.toLowerCase().includes(low) && !name.toLowerCase().includes(low)) continue;
+        }
+        const row = document.createElement('div');
+        row.className = 'rate-item';
+        row.innerHTML = `
+          <div style="min-width:90px;"><strong>${code}</strong><div class="muted" style="font-size:12px">${name}</div></div>
+          <div style="text-align:right; min-width:120px;">
+            <div style="font-weight:700">${formatNumber(info.perUSD,4)}</div>
+            <div class="muted" style="font-size:12px">1 USD = ${formatNumber(info.perUSD,4)} ${code}</div>
+          </div>
+        `;
+        // append edit button
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn ghost small';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', ()=> editRate(code));
+        row.appendChild(editBtn);
+
+        // append remove button (not for USD)
+        if(code !== 'USD'){
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn ghost small';
+          delBtn.textContent = 'Remove';
+          delBtn.addEventListener('click', ()=> {
+            if(confirm(`Remove ${code}?`)){
+              delete rates[code];
+              saveRates(); populateSelects(); renderRatesList(); updateAiHint();
+            }
+          });
+          row.appendChild(delBtn);
+        }
+
+        ratesList.appendChild(row);
+      }
+    }
+
+    function editRate(code){
+      const current = rates[code].perUSD;
+      const value = prompt(`Edit rate for ${code} (how many ${code} = 1 USD). Current: ${current}`, String(current));
+      if(value === null) return;
+      const num = Number(value);
+      if(Number.isNaN(num) || num <= 0){ alert('Enter a valid number > 0'); return; }
+      rates[code].perUSD = num;
+      saveRates(); populateSelects(); renderRatesList(); updateAiHint();
+    }
+
+    function renderHistory(){
+      historyDiv.innerHTML = '';
+      historyCount.textContent = String(history.length || 0);
+      for(const item of history.slice().reverse()){
+        const row = document.createElement('div');
+        row.className = 'hrow';
+        row.innerHTML = `<div><strong>${item.input}</strong><div class="muted">${item.date}</div></div><div><strong>${item.output}</strong><div class="muted">${item.rateStr}</div></div>`;
+        historyDiv.appendChild(row);
+      }
+    }
+
+    function displayResultPlaceholder(){
+      resultDiv.textContent = '—';
+      rateNote.textContent = '';
+    }
+
+    function formatNumber(n, d = precision){
+      // Ensure we handle very small numbers well
+      if(!isFinite(n)) return '—';
+      if(Math.abs(n) < 1e-6) return Number(n).toExponential(d);
+      return Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+    }
+
+    // Events
+    convertBtn.addEventListener('click', ()=> {
+      const amt = Number(amountEl.value || 0);
+      const from = fromSel.value;
+      const to = toSel.value;
+      if(isNaN(amt)){ alert('Enter a valid amount'); return; }
+      if(!rates[from] || !rates[to]){ alert('Choose currencies'); return; }
+
+      try {
+        const conv = convert(amt, from, to);
+        const formatted = formatNumber(conv);
+        resultDiv.textContent = `${formatted} ${to}`;
+        const perFrom = Number(rates[from].perUSD);
+        const perTo = Number(rates[to].perUSD);
+        const rateVal = perTo / perFrom; // 1 unit from -> units to
+        rateNote.textContent = `1 ${from} = ${formatNumber(rateVal,6)} ${to}`;
+        // Save to history
+        const now = new Date();
+        const item = {
+          date: now.toLocaleString(),
+          input: `${amt} ${from}`,
+          output: `${formatted} ${to}`,
+          rateStr: `1 ${from} = ${formatNumber(rateVal,6)} ${to}`
+        };
+        history.push(item);
+        if(history.length > 50) history.shift();
+        saveHistory(); renderHistory();
+      } catch (e){
+        alert('Conversion failed: '+e.message);
+      }
+    });
+
+    swapBtn.addEventListener('click', ()=>{
+      const a = fromSel.value;
+      const b = toSel.value;
+      fromSel.value = b;
+      toSel.value = a;
+      // auto-convert
+      convertBtn.click();
+    });
+
+    precisionSel.addEventListener('change', ()=>{
+      precision = Number(precisionSel.value);
+      localStorage.setItem(LS_PREC, String(precision));
+      // re-render last result using new precision (re-run conversion)
+      convertBtn.click();
+    });
+
+    addCurrencyBtn.addEventListener('click', ()=>{
+      const code = (newCode.value || '').trim().toUpperCase();
+      const rate = Number(newRate.value);
+      if(!code || code.length < 2){ alert('Enter a valid currency code like "BTC" or "KWD"'); return; }
+      if(Number.isNaN(rate) || rate <= 0){ alert('Enter a valid numeric rate (per 1 USD)'); return; }
+      if(rates[code]){
+        if(!confirm(code + ' already exists. Replace?')) return;
+      }
+      rates[code] = { name: `${code} (custom)`, perUSD: rate };
+      saveRates(); populateSelects(); renderRatesList();
+      newCode.value = ''; newRate.value = '';
+      updateAiHint();
+    });
+
+    resetRates.addEventListener('click', ()=>{
+      if(confirm('Reset to default embedded rates? This will remove custom edits.')) {
+        rates = JSON.parse(JSON.stringify(DEFAULT_RATES));
+        saveRates(); populateSelects(); renderRatesList(); updateAiHint();
+      }
+    });
+
+    clearHistoryBtn.addEventListener('click', ()=>{
+      if(confirm('Clear conversion history?')){
+        history = []; saveHistory(); renderHistory();
+      }
+    });
+
+    rateSearch.addEventListener('input', (e)=> {
+      renderRatesList(e.target.value || '');
+    });
+    showAllBtn.addEventListener('click', ()=> { rateSearch.value = ''; renderRatesList(''); });
+
+    // AI-ish helper (offline heuristic):
+    // - Suggests a precision based on magnitude of selected "to" currency (e.g., JPY -> 0 decimals, BTC -> 6)
+    // - Suggests a local currency using user's timezone/country is not allowed offline, so we use heuristics from navigator.language
+    function updateAiHint(){
+      // Suggest precision: if any selected currency is "JPY" or "HUF" etc -> 0 decimals
+      const to = toSel.value || 'USD';
+      const name = (rates[to] && rates[to].name) || '';
+      let suggestedPrecision = 2;
+      const zeroDecCurrencies = ['JPY','HUF','KRW'];
+      const highDec = ['BTC','ETH'];
+      if(zeroDecCurrencies.includes(to)) suggestedPrecision = 0;
+      else if(highDec.includes(to)) suggestedPrecision = 6;
+      // Suggest local currency by language region (best-effort)
+      const locale = navigator.language || 'en-US';
+      let suggestedCurrency = 'USD';
+      if(locale.startsWith('en-IN') || locale === 'hi-IN') suggestedCurrency = 'INR';
+      else if(locale.startsWith('en-GB')) suggestedCurrency = 'GBP';
+      else if(locale.startsWith('ja')) suggestedCurrency = 'JPY';
+      else if(locale.startsWith('zh')) suggestedCurrency = 'CNY';
+      else if(locale.startsWith('en-AU')) suggestedCurrency = 'AUD';
+      else if(locale.startsWith('de')) suggestedCurrency = 'EUR';
+
+      aiHint.textContent = `${suggestedCurrency} • ${suggestedPrecision} decimals`;
+      applyAiBtn.dataset.suggCurr = suggestedCurrency;
+      applyAiBtn.dataset.suggPrec = suggestedPrecision;
+    }
+
+    applyAiBtn.addEventListener('click', ()=>{
+      const sc = applyAiBtn.dataset.suggCurr || 'USD';
+      const sp = Number(applyAiBtn.dataset.suggPrec || 2);
+      if(rates[sc]) toSel.value = sc;
+      precisionSel.value = String(sp);
+      precision = sp;
+      localStorage.setItem(LS_PREC, String(precision));
+      convertBtn.click();
+    });
+
+    // initial render
+    init();
+
+    // ensure we update AI hint when selects change
+    fromSel.addEventListener('change', updateAiHint);
+    toSel.addEventListener('change', updateAiHint);
+  </script>
+</body>
+</html>
