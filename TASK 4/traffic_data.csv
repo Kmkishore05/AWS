@@ -1,0 +1,21 @@
+timestamp,location,traffic_level,pm25
+2025-11-04T14:00,Main Road,Low,45
+2025-11-04T14:05,Market Street,Medium,67
+2025-11-04T14:10,Highway 21,High,98
+2025-11-04T14:15,Tech Park,Low,120
+2025-11-04T14:20,Central Ave,Medium,135
+2025-11-04T14:25,Main Road,High,150
+2025-11-04T14:30,Market Street,Low,175
+2025-11-04T14:35,Highway 21,Medium,200
+2025-11-04T14:40,Tech Park,High,45
+2025-11-04T14:45,Central Ave,Low,67
+2025-11-04T14:50,Main Road,Medium,98
+2025-11-04T14:55,Market Street,High,120
+2025-11-04T15:00,Highway 21,Low,135
+2025-11-04T15:05,Tech Park,Medium,150
+2025-11-04T15:10,Central Ave,High,175
+2025-11-04T15:15,Main Road,Low,200
+2025-11-04T15:20,Market Street,Medium,45
+2025-11-04T15:25,Highway 21,High,67
+2025-11-04T15:30,Tech Park,Low,98
+2025-11-04T15:35,Central Ave,Medium,120
